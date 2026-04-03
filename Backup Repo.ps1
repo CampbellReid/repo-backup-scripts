@@ -43,6 +43,10 @@ function Get-RepoSaveInfo {
         else { @("Unknown/Solo") }
         $stats = $json.dictionaryOfDictionaries.value.runStats
         $level = if ($null -ne $stats.level) { $stats.level } else { $stats.'save level' }
+        # Add 1 to the detected level because the game saves the last completed level, but we want to show the next one.
+        if ($null -ne $level -and $null -ne ($level -as [int])) {
+            $level = [int]$level + 1
+        }
         return [PSCustomObject]@{
             Level   = if ($null -eq $level) { "N/A" } else { $level }
             Players = $playerNames -join ", "
