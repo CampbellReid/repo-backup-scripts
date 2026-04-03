@@ -4,6 +4,35 @@ param(
     [Parameter()]
     [switch]$Single
 )
+
+$UpdateUrl = "https://raw.githubusercontent.com/campb/repo-backup-scripts/main/Backup%20Repo.ps1"
+
+try {
+    Write-Host "Checking for updates..." -ForegroundColor Cyan
+    $tempFile = [System.IO.Path]::GetTempFileName()
+    Invoke-WebRequest -Uri $UpdateUrl -OutFile $tempFile -UseBasicParsing -TimeoutSec 10 -ErrorAction Stop
+    
+    $currentHash = (Get-FileHash $PSCommandPath).Hash
+    $newHash = (Get-FileHash $tempFile).Hash
+    
+    if ($currentHash -ne $newHash) {
+        Write-Host "New version found! Updating..." -ForegroundColor Yellow
+        Copy-Item -Path $tempFile -Destination $PSCommandPath -Force
+        
+        Write-Host "Restarting script..." -ForegroundColor Green
+        $argsList = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "`"$PSCommandPath`"")
+        if (-not [string]::IsNullOrWhiteSpace($Target)) { $argsList += "`"$Target`"" }
+        if ($Single) { $argsList += "-Single" }
+        
+        Start-Process powershell.exe -ArgumentList $argsList
+        exit
+    }
+    Remove-Item -Path $tempFile -Force -ErrorAction SilentlyContinue
+}
+catch {
+    Write-Host "Could not auto-update: $($_.Exception.Message)" -ForegroundColor DarkGray
+}
+
 function Get-Aes128Key {
     param([string]$Password, [byte[]]$Salt, [int]$Iterations = 100)
     $passwordBytes = [System.Text.Encoding]::UTF8.GetBytes($Password)
@@ -146,6 +175,8 @@ if (-not $Single) {
     Write-Host "Auto-backup mode enabled! Backing up '$selectedFolder' every 1 minute..." -ForegroundColor Green
     Write-Host "Press Ctrl+C to stop." -ForegroundColor White
     
+    $lastWriteTime = $null
+    
     while ($true) {
         $timestamp = Get-Date -Format "HH:mm:ss"
         
@@ -172,6 +203,17 @@ if (-not $Single) {
                 Write-Host "[$timestamp] RECOVERY FAILED: $($_.Exception.Message)" -ForegroundColor Red
                 return
             }
+        }
+
+        $es3Path = Join-Path $actualSource "$selectedFolder.es3"
+        if (Test-Path -LiteralPath $es3Path) {
+            $currentWriteTime = (Get-Item -LiteralPath $es3Path).LastWriteTime
+            if ($null -ne $lastWriteTime -and $currentWriteTime -le $lastWriteTime) {
+                Write-Host "[$timestamp] No changes detected, skipping backup..." -ForegroundColor DarkGray
+                Start-Sleep -Seconds 60
+                continue
+            }
+            $lastWriteTime = $currentWriteTime
         }
 
         Copy-Item -Path $source -Destination $destination -Recurse -Force
