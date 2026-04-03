@@ -52,10 +52,18 @@ function Get-RepoSaveInfo {
 }
 
 $savesRoot = Join-Path $HOME "AppData\LocalLow\semiwork\Repo\saves"
-$saves = Get-ChildItem -Path $savesRoot -Directory
-$saveNames = $saves.Name
 
-if ($saveNames.Count -eq 0) {
+Write-Host "Looking for saves in: $savesRoot" -ForegroundColor Cyan
+
+if (-not (Test-Path $savesRoot)) {
+    Write-Host "The directory $savesRoot does not exist!" -ForegroundColor Red
+    return
+}
+
+$saves = Get-ChildItem -Path $savesRoot -Directory
+$saveNames = @($saves.Name)
+
+if (-not $saveNames -or $saveNames.Count -eq 0) {
     Write-Host "No save folders found in $savesRoot" -ForegroundColor Red
     return
 }
