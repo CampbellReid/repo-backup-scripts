@@ -172,7 +172,7 @@ if (-not (Test-Path -Path $destination)) {
 }
 
 if (-not $Single) {
-    Write-Host "Auto-backup mode enabled! Backing up '$selectedFolder' every 1 minute..." -ForegroundColor Green
+    Write-Host "Auto-backup mode enabled! Backing up '$selectedFolder' every 5 seconds..." -ForegroundColor Green
     Write-Host "Press Ctrl+C to stop." -ForegroundColor White
     
     $lastWriteTime = $null
@@ -210,7 +210,7 @@ if (-not $Single) {
             $currentWriteTime = (Get-Item -LiteralPath $es3Path).LastWriteTime
             if ($null -ne $lastWriteTime -and $currentWriteTime -le $lastWriteTime) {
                 Write-Host "[$timestamp] No changes detected, skipping backup..." -ForegroundColor DarkGray
-                Start-Sleep -Seconds 60
+                Start-Sleep -Seconds 5
                 continue
             }
             $lastWriteTime = $currentWriteTime
@@ -218,7 +218,7 @@ if (-not $Single) {
 
         Copy-Item -Path $source -Destination $destination -Recurse -Force
         Write-Host "[$timestamp] Auto-backup complete!" -ForegroundColor Gray
-        Start-Sleep -Seconds 60
+        Start-Sleep -Seconds 5
     }
 }
 else {
