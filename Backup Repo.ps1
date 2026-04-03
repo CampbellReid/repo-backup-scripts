@@ -5,7 +5,7 @@ param(
     [switch]$Single
 )
 
-$UpdateUrl = "https://raw.githubusercontent.com/campb/repo-backup-scripts/main/Backup%20Repo.ps1"
+$UpdateUrl = "https://raw.githubusercontent.com/CampbellReid/repo-backup-scripts/refs/heads/master/Backup%20Repo.ps1"
 
 try {
     Write-Host "Checking for updates..." -ForegroundColor Cyan
