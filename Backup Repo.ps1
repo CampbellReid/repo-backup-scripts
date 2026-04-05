@@ -2,35 +2,46 @@ param(
     [Parameter(Position = 0)]
     [string]$Target,
     [Parameter()]
-    [switch]$Single
+    [switch]$Single,
+    [Parameter()]
+    [switch]$Dev,
+    [Parameter()]
+    [string]$SavesPath
 )
 
 $UpdateUrl = "https://raw.githubusercontent.com/CampbellReid/repo-backup-scripts/refs/heads/master/Backup%20Repo.ps1"
 
-try {
-    Write-Host "Checking for updates..." -ForegroundColor Cyan
-    $tempFile = [System.IO.Path]::GetTempFileName()
-    Invoke-WebRequest -Uri $UpdateUrl -OutFile $tempFile -UseBasicParsing -TimeoutSec 10 -ErrorAction Stop
-    
-    $currentHash = (Get-FileHash $PSCommandPath).Hash
-    $newHash = (Get-FileHash $tempFile).Hash
-    
-    if ($currentHash -ne $newHash) {
-        Write-Host "New version found! Updating..." -ForegroundColor Yellow
-        Copy-Item -Path $tempFile -Destination $PSCommandPath -Force
+if (-not $Dev) {
+    try {
+        Write-Host "Checking for updates..." -ForegroundColor Cyan
+        $tempFile = [System.IO.Path]::GetTempFileName()
+        Invoke-WebRequest -Uri $UpdateUrl -OutFile $tempFile -UseBasicParsing -TimeoutSec 10 -ErrorAction Stop
         
-        Write-Host "Restarting script..." -ForegroundColor Green
-        $argsList = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "`"$PSCommandPath`"")
-        if (-not [string]::IsNullOrWhiteSpace($Target)) { $argsList += "`"$Target`"" }
-        if ($Single) { $argsList += "-Single" }
+        $currentHash = (Get-FileHash $PSCommandPath).Hash
+        $newHash = (Get-FileHash $tempFile).Hash
         
-        Start-Process powershell.exe -ArgumentList $argsList
-        exit
+        if ($currentHash -ne $newHash) {
+            Write-Host "New version found! Updating..." -ForegroundColor Yellow
+            Copy-Item -Path $tempFile -Destination $PSCommandPath -Force
+            
+            Write-Host "Restarting script..." -ForegroundColor Green
+            $argsList = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "`"$PSCommandPath`"")
+            if (-not [string]::IsNullOrWhiteSpace($Target)) { $argsList += "`"$Target`"" }
+            if ($Single) { $argsList += "-Single" }
+            if ($Dev) { $argsList += "-Dev" }
+            if (-not [string]::IsNullOrWhiteSpace($SavesPath)) { $argsList += @("-SavesPath", "`"$SavesPath`"") }
+            
+            Start-Process powershell.exe -ArgumentList $argsList
+            exit
+        }
+        Remove-Item -Path $tempFile -Force -ErrorAction SilentlyContinue
     }
-    Remove-Item -Path $tempFile -Force -ErrorAction SilentlyContinue
+    catch {
+        Write-Host "Could not auto-update: $($_.Exception.Message)" -ForegroundColor DarkGray
+    }
 }
-catch {
-    Write-Host "Could not auto-update: $($_.Exception.Message)" -ForegroundColor DarkGray
+else {
+    Write-Host "Dev mode: Skipping update check." -ForegroundColor Yellow
 }
 
 function Get-Aes128Key {
@@ -84,7 +95,11 @@ function Get-RepoSaveInfo {
     catch { return $null }
 }
 
-$savesRoot = Join-Path $HOME "AppData\LocalLow\semiwork\Repo\saves"
+$savesRoot = if ([string]::IsNullOrWhiteSpace($SavesPath)) { 
+    Join-Path $HOME "AppData\LocalLow\semiwork\Repo\saves"
+} else { 
+    $SavesPath 
+}
 
 Write-Host "Looking for saves in: $savesRoot" -ForegroundColor Cyan
 
@@ -180,17 +195,23 @@ if (-not $Single) {
     while ($true) {
         $timestamp = Get-Date -Format "HH:mm:ss"
         
-        # Check if the source folder still exists
+        # Check if the source folder still exists or is empty
         $actualSource = Join-Path $savesRoot $selectedFolder
-        if (-not (Test-Path -Path $actualSource)) {
-            Write-Host "[$timestamp] WARNING: Source folder '$selectedFolder' disappeared! Attempting automatic recovery..." -ForegroundColor Yellow
+        $missing = -not (Test-Path -Path $actualSource)
+        $wiped = -not $missing -and -not (Get-ChildItem -Path $actualSource -ErrorAction SilentlyContinue)
+
+        if ($missing -or $wiped) {
+            $reason = if ($missing) { "disappeared" } else { "was wiped" }
+            Write-Host "[$timestamp] WARNING: Source folder '$selectedFolder' $reason! Attempting automatic recovery..." -ForegroundColor Yellow
             
             try {
                 # Source for restoration is our current backup folder
                 $restoreSource = $destination
                 
                 if (Test-Path -Path $restoreSource) {
-                    New-Item -ItemType Directory -Path $actualSource -Force | Out-Null
+                    if ($missing) {
+                        New-Item -ItemType Directory -Path $actualSource -Force | Out-Null
+                    }
                     Copy-Item -Path "$restoreSource\*" -Destination $actualSource -Recurse -Force -ErrorAction Stop
                     Write-Host "[$timestamp] RECOVERY SUCCESSFUL: Folder restored from backup." -ForegroundColor Green
                 }
