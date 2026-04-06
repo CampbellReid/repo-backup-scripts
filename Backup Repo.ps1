@@ -19,19 +19,19 @@ $HashUrl = "$UpdateUrl.sha256"
 if (-not $Dev) {
     try {
         Write-Host "Checking for updates..." -ForegroundColor Cyan
-        
+
         # Download the latest hash from GitHub Release
         $latestHash = (Invoke-WebRequest -Uri $HashUrl -UseBasicParsing -TimeoutSec 10 -ErrorAction Stop).Content.Trim()
-        
+
         # Calculate the hash of the current script
         $currentHash = (Get-FileHash $PSCommandPath -Algorithm SHA256).Hash
 
         if ($currentHash -ne $latestHash) {
             Write-Host "New version found! Updating..." -ForegroundColor Yellow
-            
+
             $tempFile = [System.IO.Path]::GetTempFileName()
             Invoke-WebRequest -Uri $UpdateUrl -OutFile $tempFile -UseBasicParsing -TimeoutSec 10 -ErrorAction Stop
-            
+
             # Double check the downloaded file's hash
             $downloadedHash = (Get-FileHash $tempFile -Algorithm SHA256).Hash
             if ($downloadedHash -eq $latestHash) {
@@ -112,10 +112,10 @@ function Get-RepoSaveInfo {
     catch { return $null }
 }
 
-$savesRoot = if ([string]::IsNullOrWhiteSpace($SavesPath)) { 
+$savesRoot = if ([string]::IsNullOrWhiteSpace($SavesPath)) {
     Join-Path $HOME "AppData\LocalLow\semiwork\Repo\saves"
-} else { 
-    $SavesPath 
+} else {
+    $SavesPath
 }
 
 Write-Host "Looking for saves in: $savesRoot" -ForegroundColor Cyan
@@ -148,7 +148,7 @@ if (-not [string]::IsNullOrWhiteSpace($Target)) {
             $selectedFolder = $Target
         }
     }
-    
+
     if (-not $selectedFolder) {
         Write-Host "Target '$Target' not found as an index or folder name." -ForegroundColor Yellow
     }
@@ -161,7 +161,7 @@ if (-not $selectedFolder) {
         $saveName = $saveNames[$i]
         # REPO save files are usually inside the folder matching the folder name
         $es3Path = Join-Path $savesRoot "$saveName\$saveName.es3"
-        
+
         $info = Get-RepoSaveInfo -Path $es3Path
         if ($info) {
             Write-Host "[$i] Level: $($info.Level) | Players: $($info.Players) | Folder: $saveName"
@@ -206,12 +206,12 @@ if (-not (Test-Path -Path $destination)) {
 if (-not $Single) {
     Write-Host "Auto-backup mode enabled! Backing up '$selectedFolder' every 5 seconds..." -ForegroundColor Green
     Write-Host "Press Ctrl+C to stop." -ForegroundColor White
-    
+
     $lastWriteTime = $null
-    
+
     while ($true) {
         $timestamp = Get-Date -Format "HH:mm:ss"
-        
+
         # Check if the source folder still exists or is empty
         $actualSource = Join-Path $savesRoot $selectedFolder
         $missing = -not (Test-Path -Path $actualSource)
@@ -220,11 +220,11 @@ if (-not $Single) {
         if ($missing -or $wiped) {
             $reason = if ($missing) { "disappeared" } else { "was wiped" }
             Write-Host "[$timestamp] WARNING: Source folder '$selectedFolder' $reason! Attempting automatic recovery..." -ForegroundColor Yellow
-            
+
             try {
                 # Source for restoration is our current backup folder
                 $restoreSource = $destination
-                
+
                 if (Test-Path -Path $restoreSource) {
                     if ($missing) {
                         New-Item -ItemType Directory -Path $actualSource -Force | Out-Null
