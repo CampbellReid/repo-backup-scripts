@@ -9,32 +9,49 @@ param(
     [string]$SavesPath
 )
 
-$UpdateUrl = "https://raw.githubusercontent.com/CampbellReid/repo-backup-scripts/refs/heads/master/Backup%20Repo.ps1"
+$RepoOwner = "CampbellReid"
+$RepoName = "repo-backup-scripts"
+$ReleaseBaseUrl = "https://github.com/$RepoOwner/$RepoName/releases/latest/download"
+$ScriptFileName = "Backup Repo.ps1"
+$UpdateUrl = "$ReleaseBaseUrl/$([Uri]::EscapeDataString($ScriptFileName))"
+$HashUrl = "$UpdateUrl.sha256"
 
 if (-not $Dev) {
     try {
         Write-Host "Checking for updates..." -ForegroundColor Cyan
-        $tempFile = [System.IO.Path]::GetTempFileName()
-        Invoke-WebRequest -Uri $UpdateUrl -OutFile $tempFile -UseBasicParsing -TimeoutSec 10 -ErrorAction Stop
         
-        $currentHash = (Get-FileHash $PSCommandPath).Hash
-        $newHash = (Get-FileHash $tempFile).Hash
+        # Download the latest hash from GitHub Release
+        $latestHash = (Invoke-WebRequest -Uri $HashUrl -UseBasicParsing -TimeoutSec 10 -ErrorAction Stop).Content.Trim()
         
-        if ($currentHash -ne $newHash) {
+        # Calculate the hash of the current script
+        $currentHash = (Get-FileHash $PSCommandPath -Algorithm SHA256).Hash
+
+        if ($currentHash -ne $latestHash) {
             Write-Host "New version found! Updating..." -ForegroundColor Yellow
-            Copy-Item -Path $tempFile -Destination $PSCommandPath -Force
             
-            Write-Host "Restarting script..." -ForegroundColor Green
-            $argsList = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "`"$PSCommandPath`"")
-            if (-not [string]::IsNullOrWhiteSpace($Target)) { $argsList += "`"$Target`"" }
-            if ($Single) { $argsList += "-Single" }
-            if ($Dev) { $argsList += "-Dev" }
-            if (-not [string]::IsNullOrWhiteSpace($SavesPath)) { $argsList += @("-SavesPath", "`"$SavesPath`"") }
+            $tempFile = [System.IO.Path]::GetTempFileName()
+            Invoke-WebRequest -Uri $UpdateUrl -OutFile $tempFile -UseBasicParsing -TimeoutSec 10 -ErrorAction Stop
             
-            Start-Process powershell.exe -ArgumentList $argsList
-            exit
+            # Double check the downloaded file's hash
+            $downloadedHash = (Get-FileHash $tempFile -Algorithm SHA256).Hash
+            if ($downloadedHash -eq $latestHash) {
+                Copy-Item -Path $tempFile -Destination $PSCommandPath -Force
+                Write-Host "Restarting script..." -ForegroundColor Green
+
+                $argsList = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "`"$PSCommandPath`"")
+                if (-not [string]::IsNullOrWhiteSpace($Target)) { $argsList += "`"$Target`"" }
+                if ($Single) { $argsList += "-Single" }
+                if ($Dev) { $argsList += "-Dev" }
+                if (-not [string]::IsNullOrWhiteSpace($SavesPath)) { $argsList += @("-SavesPath", "`"$SavesPath`"") }
+
+                Start-Process powershell.exe -ArgumentList $argsList
+                exit
+            }
+            else {
+                Write-Host "Downloaded file hash mismatch. Update aborted." -ForegroundColor Red
+            }
+            Remove-Item -Path $tempFile -Force -ErrorAction SilentlyContinue
         }
-        Remove-Item -Path $tempFile -Force -ErrorAction SilentlyContinue
     }
     catch {
         Write-Host "Could not auto-update: $($_.Exception.Message)" -ForegroundColor DarkGray
