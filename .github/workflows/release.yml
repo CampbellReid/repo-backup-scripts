@@ -1,0 +1,37 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - master
+
+env:
+  VERSION_MAJOR_MINOR: v1
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Normalize line endings (LF)
+        run: |
+          sed -i 's/\r$//' "Backup Repo.ps1"
+
+      - name: Calculate Hash
+        run: |
+          sha256sum "Backup Repo.ps1" | cut -d ' ' -f 1 > "Backup Repo.ps1.sha256"
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.VERSION_MAJOR_MINOR }}.${{ github.run_number }}
+          make_latest: true
+          files: |
+            Backup Repo.ps1
+            Backup Repo.ps1.sha256
+          generate_release_notes: true

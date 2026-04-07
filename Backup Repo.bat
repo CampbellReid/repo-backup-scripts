@@ -1,1 +1,0 @@
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0Backup Repo.ps1" %*
