@@ -5,6 +5,9 @@ on:
     branches:
       - master
 
+env:
+  VERSION_MAJOR_MINOR: v1
+
 permissions:
   contents: write
 
@@ -26,7 +29,8 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: latest
+          tag_name: ${{ env.VERSION_MAJOR_MINOR }}.${{ github.run_number }}
+          make_latest: true
           files: |
             Backup Repo.ps1
             Backup Repo.ps1.sha256
