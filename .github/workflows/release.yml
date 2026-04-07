@@ -2,8 +2,8 @@ name: Release
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - master
 
 permissions:
   contents: write
@@ -26,6 +26,7 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: latest
           files: |
             Backup Repo.ps1
             Backup Repo.ps1.sha256
