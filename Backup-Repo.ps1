@@ -12,8 +12,8 @@ param(
 $RepoOwner = "CampbellReid"
 $RepoName = "repo-backup-scripts"
 $ReleaseBaseUrl = "https://github.com/$RepoOwner/$RepoName/releases/latest/download"
-$ScriptFileName = "Backup Repo.ps1"
-$UpdateUrl = "$ReleaseBaseUrl/$([Uri]::EscapeDataString($ScriptFileName))"
+$ScriptFileName = "Backup-Repo.ps1"
+$UpdateUrl = "$ReleaseBaseUrl/$ScriptFileName"
 $HashUrl = "$UpdateUrl.sha256"
 
 if (-not $Dev) {
