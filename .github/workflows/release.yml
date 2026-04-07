@@ -15,10 +15,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Normalize line endings (CRLF for Windows)
+      - name: Normalize line endings (LF)
         run: |
           sed -i 's/\r$//' "Backup Repo.ps1"
-          sed -i 's/$/\r/' "Backup Repo.ps1"
 
       - name: Calculate Hash
         run: |
